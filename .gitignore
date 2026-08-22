@@ -1,2 +1,4 @@
 .DS_Store
 images.db
+embeddings.index
+embeddings.ids.npy
