@@ -1,6 +1,7 @@
 import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ["OMP_NUM_THREADS"] = "1"
 
 from pathlib import Path
 import tkinter as tk
@@ -13,7 +14,7 @@ from PIL import Image, ImageTk, ImageOps
 from tqdm import tqdm
 import time
 import os
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 from database.database import Database
 from database.repository import ImageRepository
