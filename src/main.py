@@ -439,14 +439,36 @@ def calculate_similarities_for_reference(
 
     # Referenz-Embedding
     ref_embedding = np.frombuffer(
-        reference["embedding"],
-        dtype=np.float32,
+    reference["embedding"],
+    dtype=np.float32,
     )
 
-    # Top-Kandidaten über FAISS
+    print(
+        "index:",
+        embedding_index.index.ntotal,
+        embedding_index.index.d,
+        flush=True,
+    )
+
+    print(
+        "embedding:",
+        ref_embedding.shape,
+        ref_embedding.dtype,
+        ref_embedding.flags["C_CONTIGUOUS"],
+        flush=True,
+    )
+
+    print("Before FAISS search", flush=True)
+
     candidates = embedding_index.search(
         ref_embedding,
-        k=candidate_count + 1,
+        k=candidate_count,
+    )
+
+    print(
+        "After FAISS search:",
+        len(candidates),
+        flush=True,
     )
 
     # Referenz-Hash
