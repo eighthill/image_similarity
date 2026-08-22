@@ -1,0 +1,13 @@
+imagehash
+opencv-python
+tqdm
+torch
+numpy
+pathlib
+#sqlite3
+torchvision
+Pillow
+faiss-cpu
+#tkinter
+#time
+#os

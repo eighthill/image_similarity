@@ -1,62 +1,44 @@
-"""
 import cv2
+import numpy as np
 
-def color_similarity(
-    image1,
-    image2
-):
+def calculate_color_histogram(image):
 
-    hist1 = cv2.calcHist(
-        [image1],
+    if not isinstance(image, np.ndarray):
+        image = np.asarray(image)
+
+    hist = cv2.calcHist(
+        [image],
         [0, 1, 2],
         None,
         [8, 8, 8],
         [0, 256, 0, 256, 0, 256]
     )
 
-    hist2 = cv2.calcHist(
-        [image2],
-        [0, 1, 2],
-        None,
-        [8, 8, 8],
-        [0, 256, 0, 256, 0, 256]
+    cv2.normalize(hist, hist)
+
+    return hist.astype(np.float32).flatten()
+
+
+def color_similarity_from_histograms(hist1, hist2):
+
+    hist1 = np.asarray(hist1, dtype=np.float32)
+    hist2 = np.asarray(hist2, dtype=np.float32)
+
+    return float(
+        1 - cv2.compareHist(
+            hist1.reshape(-1, 1),
+            hist2.reshape(-1, 1),
+            cv2.HISTCMP_BHATTACHARYYA
+        )
     )
 
-    cv2.normalize(hist1, hist1)
-    cv2.normalize(hist2, hist2)
-
-    corr = cv2.compareHist(hist1,hist2,cv2.HISTCMP_CORREL)
-
-    return (corr + 1) / 2
-"""
-
-import cv2
 
 def color_similarity(image1, image2):
 
-    hist1 = cv2.calcHist(
-        [image1],
-        [0,1,2],
-        None,
-        [8,8,8],
-        [0,256,0,256,0,256]
-    )
+    hist1 = calculate_color_histogram(image1)
+    hist2 = calculate_color_histogram(image2)
 
-    hist2 = cv2.calcHist(
-        [image2],
-        [0,1,2],
-        None,
-        [8,8,8],
-        [0,256,0,256,0,256]
-    )
-
-    cv2.normalize(hist1, hist1)
-    cv2.normalize(hist2, hist2)
-
-    distance = cv2.compareHist(
+    return color_similarity_from_histograms(
         hist1,
-        hist2,
-        cv2.HISTCMP_BHATTACHARYYA
+        hist2
     )
-
-    return 1 - distance
