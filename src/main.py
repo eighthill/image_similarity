@@ -529,13 +529,21 @@ def calculate_similarities_for_reference(
     return results
 
 class SimilarityViewer:
-    def __init__(self, root, repo, images, embedding_index):
+    def __init__(self, root, repo, embedding_index):
         self.root = root
         self.repo = repo
-        self.images = images
         self.embedding_index = embedding_index
-        
-        self.image_by_id = {row["id"]: row for row in images}
+
+        self.page_size = 21
+        self.current_page = 0
+
+        self.total_images = self.repo.get_image_count()
+        self.total_pages = (
+            self.total_images + self.page_size - 1
+        ) // self.page_size
+
+        self.images = []
+        self.image_by_id = {}
         self.photo_refs = {}
         self.selected_id = None
         self.current_results = []
@@ -553,130 +561,116 @@ class SimilarityViewer:
         right = ttk.Frame(outer, padding=10)
         outer.add(left, weight=1)
         outer.add(right, weight=2)
-
-        ttk.Label(left, text="Referenzbild auswählen", font=("TkDefaultFont", 14, "bold")).pack(anchor="w")
-        ttk.Label(left, text="Klick auf ein Bild → rechts werden die ähnlichsten Bilder angezeigt.").pack(anchor="w", pady=(2, 10))
-
-        self.thumb_canvas = tk.Canvas(
-            left,
-            highlightthickness=0
+        
+        self.reference_label = ttk.Label(
+            right,
+            text="Keine Referenz ausgewählt",
+            font=("TkDefaultFont", 14, "bold")
         )
 
-        scrollbar = ttk.Scrollbar(
-            left,
-            orient="vertical",
-            command=self.thumb_canvas.yview
+        self.reference_label.pack(
+            anchor="w",
+            pady=(0, 5)
         )
 
-        self.thumb_frame = ttk.Frame(
-            self.thumb_canvas
+        self.reference_score = ttk.Label(
+            right,
+            text=""
         )
 
-        self.thumb_window = self.thumb_canvas.create_window(
-            (0, 0),
-            window=self.thumb_frame,
-            anchor="nw"
+        self.reference_score.pack(
+            anchor="w",
+            pady=(0, 10)
         )
         
-        self.thumb_frame.bind(
-            "<Configure>",
-            self._on_thumbnail_frame_configure
+        self.top5_frame = ttk.Frame(right)
+        
+        self.top5_frame.pack(
+            fill=tk.X,
+            pady=(10, 10)
+        )
+        
+        self.results = ttk.Treeview(
+            right,
+            columns=(
+                "image",
+                "overall",
+                "color",
+                "embedding",
+                "hash",
+            ),
+            show="headings",
         )
 
-        self.thumb_canvas.configure(
-            yscrollcommand=scrollbar.set
-        )
+        self.results.heading("image", text="Bild")
+        self.results.heading("overall", text="Gesamt")
+        self.results.heading("color", text="Farbe")
+        self.results.heading("embedding", text="Embedding")
+        self.results.heading("hash", text="Hash")
 
-        self.thumb_canvas.pack(
-            side=tk.LEFT,
+        self.results.column("image", width=220)
+        self.results.column("overall", width=80)
+        self.results.column("color", width=80)
+        self.results.column("embedding", width=90)
+        self.results.column("hash", width=80)
+
+        self.results.pack(
             fill=tk.BOTH,
             expand=True
         )
 
-        scrollbar.pack(
-            side=tk.RIGHT,
-            fill=tk.Y
+        ttk.Label(left, text="Referenzbild auswählen", font=("TkDefaultFont", 14, "bold")).pack(anchor="w")
+        ttk.Label(left, text="Klick auf ein Bild → rechts werden die ähnlichsten Bilder angezeigt.").pack(anchor="w", pady=(2, 10))
+
+        self.page_label = ttk.Label(
+            left,
+            text=""
         )
-        
-        self.reference_label = ttk.Label(right, text="Noch kein Referenzbild ausgewählt", font=("TkDefaultFont", 14, "bold"))
-        self.reference_label.pack(anchor="w")
-        self.reference_score = ttk.Label(right, text="")
-        self.reference_score.pack(anchor="w", pady=(2, 8))
 
-        ttk.Label(right, text="Top 5 ähnliche Bilder", font=("TkDefaultFont", 12, "bold")).pack(anchor="w", pady=(0, 6))
-
-        self.top5_canvas = tk.Canvas(right, highlightthickness=0, height=340)
-        self.top5_scrollbar = ttk.Scrollbar(right, orient="horizontal", command=self.top5_canvas.xview)
-        self.top5_frame = ttk.Frame(self.top5_canvas)
-        self.top5_window = self.top5_canvas.create_window((0, 0), window=self.top5_frame, anchor="nw")
-        self.top5_canvas.configure(xscrollcommand=self.top5_scrollbar.set)
-        self.top5_canvas.pack(fill=tk.X, expand=False)
-        self.top5_scrollbar.pack(fill=tk.X, pady=(0, 10))
-        self.top5_frame.bind("<Configure>", lambda e: self.top5_canvas.configure(scrollregion=self.top5_canvas.bbox("all")))
-        self.top5_refs = []
-
-        ttk.Label(right, text="Alle Treffer", font=("TkDefaultFont", 12, "bold")).pack(anchor="w", pady=(0, 6))
-        results_container = ttk.Frame(right)
-        results_container.pack(fill=tk.BOTH, expand=True)
-
-        self.results = ttk.Treeview(
-            results_container,
-            columns=("image", "overall", "color", "embedding", "hash"),
-            show="headings",
-            height=8,
+        self.page_label.pack(
+            anchor="center",
+            pady=(0, 5)
         )
-        headings = {
-            "image": "Bild",
-            "overall": "Gesamt",
-            "color": "Farbe",
-            "embedding": "Embedding",
-            "hash": "Hash",
-        }
-        widths = {"image": 360, "overall": 90, "color": 90, "embedding": 100, "hash": 90}
-        for col in headings:
-            self.results.heading(
-                col,
-                text=headings[col],
-                command=lambda c=col: self.sort_results(c),
-            )
-            self.results.column(col, width=widths[col], anchor="center" if col != "image" else "w")
-        results_scrollbar = ttk.Scrollbar(results_container, orient="vertical", command=self.results.yview)
-        self.results.configure(yscrollcommand=results_scrollbar.set)
-        self.results.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        results_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self._build_lazy_thumbnails()
+        navigation = ttk.Frame(left)
+        navigation.pack(
+            fill=tk.X,
+            pady=(0, 5)
+        )
 
-    def _build_lazy_thumbnails(self):
+        self.previous_button = ttk.Button(
+            navigation,
+            text="← Zurück",
+            command=self.previous_page
+        )
 
-        self.thumb_columns = 3
-        self.thumb_visible_rows = 8
+        self.previous_button.pack(
+            side=tk.LEFT
+        )
 
-        self.thumb_widgets = {}
+        self.next_button = ttk.Button(
+            navigation,
+            text="Weiter →",
+            command=self.next_page
+        )
 
-        for column in range(self.thumb_columns):
+        self.next_button.pack(
+            side=tk.RIGHT
+        )
+
+        self.thumb_frame = ttk.Frame(left)
+        self.thumb_frame.pack(
+            fill=tk.BOTH,
+            expand=True
+        )
+
+        for column in range(3):
             self.thumb_frame.columnconfigure(
                 column,
                 weight=1
             )
 
-        self.thumb_canvas.bind(
-            "<Configure>",
-            self._on_thumbnail_canvas_configure
-        )
-
-        self.thumb_canvas.bind(
-            "<MouseWheel>",
-            self._on_thumbnail_scroll
-        )
-
-        self.thumb_frame.bind(
-            "<Configure>",
-            self._on_thumbnail_frame_configure
-        )
-
-        self._update_thumbnail_scrollregion()
-        self._update_visible_thumbnails()
+        self.load_page(0)
 
     def _update_thumbnail_scrollregion(self):
         """Keep the canvas window at the full virtual thumbnail-list size.
@@ -920,6 +914,169 @@ class SimilarityViewer:
         # The virtual list size is controlled by _update_thumbnail_scrollregion.
         self._update_thumbnail_scrollregion()
 
+    def load_page(self, page):
+
+        if page < 0 or page >= self.total_pages:
+            return
+
+        self.current_page = page
+
+        self.images = self.repo.get_images_for_page(
+            page,
+            self.page_size
+        )
+
+        self.image_by_id = {
+            row["id"]: row
+            for row in self.images
+        }
+
+        self._clear_thumbnail_page()
+        self._build_thumbnails()
+
+        self.page_label.config(
+            text=(
+                f"Seite {self.current_page + 1} "
+                f"von {self.total_pages}"
+            )
+        )
+
+        self.previous_button.config(
+            state=(
+                tk.NORMAL
+                if self.current_page > 0
+                else tk.DISABLED
+            )
+        )
+
+        self.next_button.config(
+            state=(
+                tk.NORMAL
+                if self.current_page < self.total_pages - 1
+                else tk.DISABLED
+            )
+        )
+
+
+    def previous_page(self):
+
+        self.load_page(
+            self.current_page - 1
+        )
+
+
+    def next_page(self):
+
+        self.load_page(
+            self.current_page + 1
+        )
+
+
+    def _clear_thumbnail_page(self):
+
+        for widget in self.thumb_frame.winfo_children():
+            widget.destroy()
+
+
+    def _build_thumbnails(self):
+
+        columns = 3
+
+        for idx, row in enumerate(self.images):
+
+            frame = ttk.Frame(
+                self.thumb_frame,
+                padding=5,
+                relief="ridge"
+            )
+
+            frame.grid(
+                row=idx // columns,
+                column=idx % columns,
+                sticky="nsew",
+                padx=3,
+                pady=3
+            )
+
+            try:
+
+                img = load_display_image(
+                    row["filepath"]
+                )
+
+                img.thumbnail(THUMB_SIZE)
+
+                thumb = Image.new(
+                    "RGB",
+                    THUMB_SIZE,
+                    "white"
+                )
+
+                x = (
+                    THUMB_SIZE[0] - img.width
+                ) // 2
+
+                y = (
+                    THUMB_SIZE[1] - img.height
+                ) // 2
+
+                thumb.paste(
+                    img,
+                    (x, y)
+                )
+
+                photo = ImageTk.PhotoImage(
+                    thumb
+                )
+
+                # Referenzen erhalten
+                frame.photo = photo
+
+                image_label = tk.Label(
+                    frame,
+                    image=photo,
+                    cursor="hand2"
+                )
+
+                image_label.pack()
+
+                image_label.bind(
+                    "<Button-1>",
+                    lambda e, image_id=row["id"]:
+                        self.select_reference(image_id)
+                )
+
+            except Exception as e:
+
+                ttk.Label(
+                    frame,
+                    text="Bild nicht verfügbar"
+                ).pack()
+
+                print(
+                    f"Thumbnail error: "
+                    f"{row['filepath']}: {e}"
+                )
+
+            name = ttk.Label(
+                frame,
+                text=row["filename"],
+                wraplength=150,
+                justify="center",
+                cursor="hand2"
+            )
+
+            name.pack(
+                fill=tk.X,
+                pady=(4, 0)
+            )
+
+            name.bind(
+                "<Button-1>",
+                lambda e, image_id=row["id"]:
+                    self.select_reference(image_id)
+            )
+
     def _clear_top5(self):
         for widget in self.top5_frame.winfo_children():
             widget.destroy()
@@ -1007,7 +1164,7 @@ class SimilarityViewer:
             ranked_results = sorted(
                 results,
                 key=lambda row:
-                self.image_by_id[row[1]]["filename"].lower()
+                self.repo.get_image_by_id(row[1])["filename"].lower()
             )
         else:
             ranked_results = sorted(
@@ -1045,7 +1202,10 @@ class SimilarityViewer:
             hash_value
         ) in enumerate(ranked_results[:5], start=1):
 
-            row = self.image_by_id[image_id]
+            row = self.repo.get_image_by_id(image_id)
+
+            if row is None:
+                continue
 
             card = ttk.Frame(
                 self.top5_frame,
@@ -1179,16 +1339,29 @@ class SimilarityViewer:
         self._show_top5(self.current_results, column)
 
     def _render_results_table(self):
+
         for item in self.results.get_children():
             self.results.delete(item)
 
-        for overall, image_id, color, embedding, hash_value in self.current_results:
+        for (
+            overall,
+            image_id,
+            color,
+            embedding,
+            hash_value
+        ) in self.current_results:
+
+            image = self.repo.get_image_by_id(image_id)
+
+            if image is None:
+                continue
+
             self.results.insert(
                 "",
                 "end",
                 iid=str(image_id),
                 values=(
-                    self.image_by_id[image_id]["filename"],
+                    image["filename"],
                     f"{overall:.4f}",
                     f"{color:.4f}",
                     f"{embedding:.4f}",
@@ -1220,7 +1393,9 @@ class SimilarityViewer:
 
         for image_id, scores in similarity_map.items():
 
-            if image_id not in self.image_by_id:
+            image = self.repo.get_image_by_id(image_id)
+
+            if image is None:
                 continue
 
             color = scores.get("color", 0.0)
@@ -1381,9 +1556,6 @@ def main():
 
     print("Finished importing images.")
 
-    images = repo.get_all_images_for_viewer()
-    print(f"Images for viewer: {len(images)}")
-    
     embedding_index = EmbeddingIndex(
         "embeddings.index"
     )
@@ -1402,7 +1574,6 @@ def main():
     SimilarityViewer(
         root,
         repo,
-        images,
         embedding_index
     )
 

@@ -89,6 +89,28 @@ class ImageRepository:
             "SELECT * FROM images"
         )
         return cursor.fetchall()
+    
+    def get_image_count(self):
+        cursor = self.db.execute(
+            "SELECT COUNT(*) AS count FROM images"
+        )
+        return cursor.fetchone()["count"]
+
+
+    def get_images_for_page(self, page, page_size=50):
+        offset = page * page_size
+
+        cursor = self.db.execute(
+            """
+            SELECT *
+            FROM images
+            ORDER BY id
+            LIMIT ? OFFSET ?
+            """,
+            (page_size, offset)
+        )
+
+        return cursor.fetchall()
 
     def update_image_features(self, image_id, embedding, hash_value, color_histogram):
         self.db.execute(
