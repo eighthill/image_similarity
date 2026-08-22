@@ -534,7 +534,7 @@ class SimilarityViewer:
         self.repo = repo
         self.embedding_index = embedding_index
 
-        self.page_size = 21
+        self.page_size = 15
         self.current_page = 0
 
         self.total_images = self.repo.get_image_count()
@@ -564,42 +564,148 @@ class SimilarityViewer:
         
         self.reference_label = ttk.Label(
             right,
-            text="Keine Referenz ausgewählt",
+            text="Noch kein Referenzbild ausgewählt",
             font=("TkDefaultFont", 14, "bold")
         )
-
-        self.reference_label.pack(
-            anchor="w",
-            pady=(0, 5)
-        )
+        self.reference_label.pack(anchor="w")
 
         self.reference_score = ttk.Label(
             right,
             text=""
         )
+        self.reference_score.pack(anchor="w", pady=(2, 8))
 
-        self.reference_score.pack(
-            anchor="w",
+
+        ttk.Label(
+            right,
+            text="Top 5 ähnliche Bilder",
+            font=("TkDefaultFont", 12, "bold")
+        ).pack(anchor="w", pady=(0, 6))
+
+
+        self.top5_canvas = tk.Canvas(
+            right,
+            highlightthickness=0,
+            height=340
+        )
+
+        self.top5_scrollbar = ttk.Scrollbar(
+            right,
+            orient="horizontal",
+            command=self.top5_canvas.xview
+        )
+
+        self.top5_frame = ttk.Frame(
+            self.top5_canvas
+        )
+
+        self.top5_window = self.top5_canvas.create_window(
+            (0, 0),
+            window=self.top5_frame,
+            anchor="nw"
+        )
+
+        self.top5_canvas.configure(
+            xscrollcommand=self.top5_scrollbar.set
+        )
+
+        self.top5_canvas.pack(
+            fill=tk.X,
+            expand=False
+        )
+
+        self.top5_scrollbar.pack(
+            fill=tk.X,
             pady=(0, 10)
         )
-        
-        self.top5_frame = ttk.Frame(right)
-        
-        self.top5_frame.pack(
-            fill=tk.X,
-            pady=(10, 10)
+
+        self.top5_frame.bind(
+            "<Configure>",
+            lambda e: self.top5_canvas.configure(
+                scrollregion=self.top5_canvas.bbox("all")
+            )
         )
-        
-        self.results = ttk.Treeview(
+
+        self.top5_refs = []
+
+
+        ttk.Label(
             right,
+            text="Alle Treffer",
+            font=("TkDefaultFont", 12, "bold")
+        ).pack(anchor="w", pady=(0, 6))
+
+
+        results_container = ttk.Frame(right)
+        results_container.pack(
+            fill=tk.BOTH,
+            expand=True
+        )
+
+
+        self.results = ttk.Treeview(
+            results_container,
             columns=(
                 "image",
                 "overall",
                 "color",
                 "embedding",
-                "hash",
+                "hash"
             ),
             show="headings",
+            height=8
+        )
+
+        headings = {
+            "image": "Bild",
+            "overall": "Gesamt",
+            "color": "Farbe",
+            "embedding": "Embedding",
+            "hash": "Hash",
+        }
+
+        widths = {
+            "image": 360,
+            "overall": 90,
+            "color": 90,
+            "embedding": 100,
+            "hash": 90,
+        }
+
+        for col in headings:
+
+            self.results.heading(
+                col,
+                text=headings[col],
+                command=lambda c=col: self.sort_results(c)
+            )
+
+            self.results.column(
+                col,
+                width=widths[col],
+                anchor="center" if col != "image" else "w"
+            )
+
+
+        results_scrollbar = ttk.Scrollbar(
+            results_container,
+            orient="vertical",
+            command=self.results.yview
+        )
+
+        self.results.configure(
+            yscrollcommand=results_scrollbar.set
+        )
+
+        self.results.pack(
+            side=tk.LEFT,
+            fill=tk.BOTH,
+            expand=True
+        )
+
+        results_scrollbar.pack(
+            side=tk.RIGHT,
+            fill=tk.Y
         )
 
         self.results.heading("image", text="Bild")
@@ -977,6 +1083,7 @@ class SimilarityViewer:
         for widget in self.thumb_frame.winfo_children():
             widget.destroy()
 
+        self.photo_refs.clear()
 
     def _build_thumbnails(self):
 
@@ -1372,7 +1479,12 @@ class SimilarityViewer:
     def select_reference(self, reference_id):
         self.selected_id = reference_id
 
-        ref = self.image_by_id[reference_id]
+        ref = self.repo.get_image_by_id(reference_id)
+
+        if ref is None:
+            return
+
+        self.image_by_id[reference_id] = ref
 
         self.reference_label.config(
             text=f"Referenz: {ref['filename']}"
@@ -1397,6 +1509,8 @@ class SimilarityViewer:
 
             if image is None:
                 continue
+
+            self.image_by_id[image_id] = image
 
             color = scores.get("color", 0.0)
             embedding = scores.get("embedding", 0.0)
