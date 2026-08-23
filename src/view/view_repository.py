@@ -4,6 +4,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 os.environ["OMP_NUM_THREADS"] = "1"
 
 from pathlib import Path
+import logging
 
 import imagehash
 import cv2
@@ -21,8 +22,7 @@ from similarity.color_similarity import (color_similarity, calculate_color_histo
 from similarity.embedding_similarity import embedding_similarity
 from similarity.hash_similarity import hash_similarity
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-IMAGE_FOLDER = "/Volumes/Extreme SSD/data/image_data"
+IMAGE_FOLDER = "/Volumes/Extreme SSD/data/image_data/"
 
 def load_display_image(filepath):
     with Image.open(filepath) as source:
@@ -238,7 +238,7 @@ def process_images(repo):
     flush_paths(pending_paths)
     repo.db.commit()
 
-    print(
+    logging.info(
         f"Image import: {imported} new, {repaired} repaired, "
         f"{skipped} already complete."
     )
@@ -541,8 +541,9 @@ def calculate_histogram_worker(row):
         )
 
     except Exception as e:
-        print(f"Error processing {row['filepath']}: {e}")
-        return row["id"], None, 0, 0, 0
+        #print(f"Error processing {row['filepath']}: {e}")
+        #return row["id"], None, 0, 0, 0
+        pass
 
 def backfill_color_histograms(repo):
 

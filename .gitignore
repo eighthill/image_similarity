@@ -2,3 +2,5 @@
 images.db
 embeddings.index
 embeddings.ids.npy
+embeddings_test.index
+embeddings_test.ids.npy

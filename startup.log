@@ -1,0 +1,10 @@
+2026-08-23 19:30:16,237 | Database initialization: 0.03s
+2026-08-23 22:28:19,649 | Image import: 320051 new, 0 repaired, 0 already complete.
+2026-08-23 22:28:19,649 | Image import: 10617.41s
+2026-08-23 22:28:44,888 | Histogram backfill: 25.24s
+2026-08-23 22:28:44,888 | Similarity repair: 0.00s
+2026-08-23 22:28:44,888 | Finished importing images.
+2026-08-23 22:29:25,298 | Embedding index: 40.41s
+2026-08-23 22:28:21,298 | 
+
+TOTAL STARTUP TIME: 10683.10s (178.05 min)
