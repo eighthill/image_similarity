@@ -735,14 +735,36 @@ class SimilarityViewer:
         ttk.Label(left, text="Referenzbild auswählen", font=("TkDefaultFont", 14, "bold")).pack(anchor="w")
         ttk.Label(left, text="Klick auf ein Bild → rechts werden die ähnlichsten Bilder angezeigt.").pack(anchor="w", pady=(2, 10))
 
-        self.page_label = ttk.Label(
-            left,
-            text=""
-        )
-
-        self.page_label.pack(
+        page_navigation = ttk.Frame(left)
+        page_navigation.pack(
             anchor="center",
             pady=(0, 5)
+        )
+
+        ttk.Label(
+            page_navigation,
+            text="Seite"
+        ).pack(side=tk.LEFT)
+
+        self.page_entry = ttk.Entry(
+            page_navigation,
+            width=7,
+            justify="center"
+        )
+        self.page_entry.pack(
+            side=tk.LEFT,
+            padx=5
+        )
+
+        self.page_total_label = ttk.Label(
+            page_navigation,
+            text=""
+        )
+        self.page_total_label.pack(side=tk.LEFT)
+
+        self.page_entry.bind(
+            "<Return>",
+            self._go_to_entered_page
         )
 
         navigation = ttk.Frame(left)
@@ -820,6 +842,22 @@ class SimilarityViewer:
             )
 
         self.load_page(0)
+
+    def _go_to_entered_page(self, event=None):
+        try:
+            page = int(self.page_entry.get())
+        except ValueError:
+            return
+
+        page -= 1
+
+        if page < 0:
+            page = 0
+
+        if page >= self.total_pages:
+            page = self.total_pages - 1
+
+        self.load_page(page)
 
     def change_page(self, amount):
         new_page = self.current_page + amount
@@ -1114,11 +1152,14 @@ class SimilarityViewer:
         self._clear_thumbnail_page()
         self._build_thumbnails()
 
-        self.page_label.config(
-            text=(
-                f"Seite {self.current_page + 1} "
-                f"von {self.total_pages}"
-            )
+        self.page_entry.delete(0, tk.END)
+        self.page_entry.insert(
+            0,
+            str(self.current_page + 1)
+        )
+
+        self.page_total_label.config(
+            text=f"von {self.total_pages}"
         )
 
         self.previous_button.config(

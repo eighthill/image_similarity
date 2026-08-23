@@ -97,7 +97,7 @@ class ImageRepository:
         return cursor.fetchone()["count"]
 
 
-    def get_images_for_page(self, page, page_size=50):
+    def get_images_for_page(self, page, page_size=15):
         offset = page * page_size
 
         cursor = self.db.execute(
