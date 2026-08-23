@@ -543,6 +543,7 @@ class SimilarityViewer:
         self.photo_refs = {}
         self.selected_id = None
         self.selected_reference_ids = set()
+        self.displayed_reference_ids = []
         self.current_results = []
         self.sort_column = "overall"
         self.sort_descending = True
@@ -871,6 +872,8 @@ class SimilarityViewer:
 
         reference_ids = list(self.selected_reference_ids)
 
+        self.displayed_reference_ids = reference_ids
+
         print(
             "MULTI START:",
             reference_ids,
@@ -890,7 +893,7 @@ class SimilarityViewer:
                 self.repo,
                 reference_id,
                 self.embedding_index,
-                candidate_count=5,
+                candidate_count=10,
             )
 
             print(
@@ -1037,6 +1040,9 @@ class SimilarityViewer:
                 f"hash={hash_value:.4f}",
                 flush=True
             )
+        
+        self.selected_reference_ids.clear()
+        self._update_multi_selection_ui()
 
     def _update_multi_selection_ui(self):
 
@@ -1597,11 +1603,9 @@ class SimilarityViewer:
 
         reference_ids = []
 
-        # Multi-Reference
-        if len(self.selected_reference_ids) >= 2:
-            reference_ids = list(self.selected_reference_ids)
+        if self.displayed_reference_ids:
+            reference_ids = list(self.displayed_reference_ids)
 
-        # Normale Einzelreferenz
         elif self.selected_id is not None:
             reference_ids = [self.selected_id]
 
@@ -1946,6 +1950,7 @@ class SimilarityViewer:
 
     def select_reference(self, reference_id):
         self.selected_reference_ids.clear()
+        self.displayed_reference_ids = []
         self.selected_id = reference_id
 
         ref = self.repo.get_image_by_id(reference_id)
@@ -2018,6 +2023,9 @@ class SimilarityViewer:
 
         self._render_results_table()
         self._update_heading_labels()
+        
+        self.selected_reference_ids.clear()
+        self._update_multi_selection_ui()
 
 def calculate_histogram_worker(row):
     import time
