@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def embedding_similarity(embedding1, embedding2):
     score = np.dot(
         embedding1,

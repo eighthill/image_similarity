@@ -32,7 +32,6 @@ def color_similarity_from_histograms(hist1, hist2):
         )
     )
 
-
 def color_similarity(image1, image2):
 
     hist1 = calculate_color_histogram(image1)

@@ -8,6 +8,8 @@ import logging
 import time
 from pathlib import Path
 
+import config
+from config import LOG_FILE, LOGGER_ACTIVE, DB_PATH, EMB_INDEX
 from database.database import Database
 from database.repository import ImageRepository
 from embedding.embedding_index import EmbeddingIndex
@@ -15,10 +17,10 @@ from embedding.embedding_index import EmbeddingIndex
 from view.similarity_viewer import SimilarityViewer
 from view.view_repository import initialize_database, process_images, backfill_color_histograms, repair_similarity_values, embedding_builder
 
-DB_PATH = "/Volumes/Extreme SSD/data/images.db/"
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-EMB_INDEX = PROJECT_ROOT / "embeddings.index"
-LOG_FILE = PROJECT_ROOT / "startup.log"
+#DB_PATH = "/Volumes/Extreme SSD/data/images.db/"
+#PROJECT_ROOT = Path(__file__).resolve().parent.parent
+#EMB_INDEX = PROJECT_ROOT / "embeddings.index"
+#LOG_FILE = PROJECT_ROOT / "startup.log"
 
 logging.basicConfig(
     filename=LOG_FILE,
@@ -27,11 +29,10 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-logger_active = False
 
 def main():
 
-    if logger_active:
+    if LOGGER_ACTIVE:
         total_start = time.perf_counter()
 
         db = Database(DB_PATH)

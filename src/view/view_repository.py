@@ -14,6 +14,7 @@ import time
 import os
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
+from config import LOGGER_ACTIVE, IMAGE_FOLDER, CANDIDATE_COUNT
 from image_loader.generator import image_generator
 from embedding.extractor import extract_embeddings
 from embedding.embedding_index import EmbeddingIndex
@@ -21,8 +22,6 @@ from embedding.embedding_index import EmbeddingIndex
 from similarity.color_similarity import (color_similarity, calculate_color_histogram, color_similarity_from_histograms)
 from similarity.embedding_similarity import embedding_similarity
 from similarity.hash_similarity import hash_similarity
-
-IMAGE_FOLDER = "/Volumes/Extreme SSD/data/image_data/"
 
 def load_display_image(filepath):
     with Image.open(filepath) as source:
@@ -192,7 +191,7 @@ def process_images(repo):
                     print(f"Processed: {processed}")
 
                 if error is not None:
-                    print(f"Skipping image: {filepath} -> {error}")
+                    #print(f"Skipping image: {filepath} -> {error}")
                     continue
 
                 existing = existing_images.get(str(filepath))
@@ -238,10 +237,11 @@ def process_images(repo):
     flush_paths(pending_paths)
     repo.db.commit()
 
-    #logging.info(
-    #    f"Image import: {imported} new, {repaired} repaired, "
-    #    f"{skipped} already complete."
-    #)
+    if LOGGER_ACTIVE:
+        logging.info(
+            f"Image import: {imported} new, {repaired} repaired, "
+            f"{skipped} already complete."
+        )
 
 def process_batch(repo, batch):
     imported = 0
@@ -410,7 +410,7 @@ def calculate_similarities_for_reference(
     repo,
     reference_id,
     embedding_index,
-    candidate_count=100,
+    candidate_count=CANDIDATE_COUNT,
 ):
 
     reference = repo.get_image_by_id(

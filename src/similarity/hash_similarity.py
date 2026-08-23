@@ -1,6 +1,3 @@
-import imagehash
-
-
 def hash_similarity(
     hash1,
     hash2

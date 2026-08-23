@@ -10,10 +10,8 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 import os
 
+from config import CANDIDATE_COUNT, MULTIPLE_CANDIDATE_COUNT, THUMB_SIZE, TOP_RESULT_SIZE
 from view.view_repository import calculate_similarities_for_reference, load_display_image
-
-THUMB_SIZE = (150, 110)
-TOP_RESULT_SIZE = (210, 155)
 
 class SimilarityViewer:
     def __init__(self, root, repo, embedding_index):
@@ -379,7 +377,7 @@ class SimilarityViewer:
                 self.repo,
                 reference_id,
                 self.embedding_index,
-                candidate_count=10,
+                candidate_count=MULTIPLE_CANDIDATE_COUNT,
             )
 
             print(
@@ -1199,7 +1197,7 @@ class SimilarityViewer:
             self.repo,
             reference_id,
             self.embedding_index,
-            candidate_count=100,
+            candidate_count=CANDIDATE_COUNT,
         )
 
         results = []
