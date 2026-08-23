@@ -238,11 +238,10 @@ def process_images(repo):
     flush_paths(pending_paths)
     repo.db.commit()
 
-    logging.info(
-        f"Image import: {imported} new, {repaired} repaired, "
-        f"{skipped} already complete."
-    )
-
+    #logging.info(
+    #    f"Image import: {imported} new, {repaired} repaired, "
+    #    f"{skipped} already complete."
+    #)
 
 def process_batch(repo, batch):
     imported = 0
@@ -389,7 +388,7 @@ def calculate_similarities(repo):
 
     repo.db.commit()
 
-
+"""
 def load_similarity_map(repo, reference_id):
     rows = {}
     for table, key in [
@@ -405,6 +404,7 @@ def load_similarity_map(repo, reference_id):
             other_id = row["id2"] if row["id1"] == reference_id else row["id1"]
             rows.setdefault(other_id, {})[key] = _similarity_value_to_float(row["similarity"])
     return rows
+"""
 
 def calculate_similarities_for_reference(
     repo,
