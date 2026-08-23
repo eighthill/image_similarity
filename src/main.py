@@ -437,18 +437,14 @@ def calculate_similarities_for_reference(
     if reference["color_histogram"] is None:
         return {}
 
-    # Referenz-Embedding
-    ref_embedding = np.frombuffer(
-    reference["embedding"],
-    dtype=np.float32,
-    )
+    ref_embedding = np.frombuffer(reference["embedding"], dtype=np.float32)
 
-    print(
-        "index:",
-        embedding_index.index.ntotal,
-        embedding_index.index.d,
-        flush=True,
-    )
+    #print(
+    #    "index:",
+    #    embedding_index.index.ntotal,
+    #    embedding_index.index.d,
+    #    flush=True,
+    #)
 
     #print(
     #    "embedding:",
@@ -1949,6 +1945,7 @@ class SimilarityViewer:
         self._update_multi_selection_ui()
 
     def select_reference(self, reference_id):
+        self.selected_reference_ids.clear()
         self.selected_id = reference_id
 
         ref = self.repo.get_image_by_id(reference_id)
