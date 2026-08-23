@@ -551,8 +551,10 @@ class SimilarityViewer:
         self.sort_descending = True
 
         root.title("Image Similarity Explorer")
-        root.geometry("1250x800")
-        root.minsize(900, 650)
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+
+        root.geometry(f"{screen_width}x{screen_height}+0+0")
 
         outer = ttk.Panedwindow(root, orient=tk.HORIZONTAL)
         outer.pack(fill=tk.BOTH, expand=True)
@@ -612,6 +614,11 @@ class SimilarityViewer:
         self.top5_canvas.pack(
             fill=tk.X,
             expand=False
+        )
+        
+        self.root.bind_all(
+            "<MouseWheel>",
+            self._on_top5_mousewheel
         )
 
         self.top5_scrollbar.pack(
@@ -744,25 +751,61 @@ class SimilarityViewer:
             pady=(0, 5)
         )
 
+        self.previous_1000_button = ttk.Button(
+            navigation,
+            text="← 1000",
+            command=lambda: self.change_page(-1000)
+        )
+        self.previous_1000_button.pack(side=tk.LEFT)
+
+        self.previous_100_button = ttk.Button(
+            navigation,
+            text="← 100",
+            command=lambda: self.change_page(-100)
+        )
+        self.previous_100_button.pack(side=tk.LEFT)
+
+        self.previous_10_button = ttk.Button(
+            navigation,
+            text="← 10",
+            command=lambda: self.change_page(-10)
+        )
+        self.previous_10_button.pack(side=tk.LEFT)
+
         self.previous_button = ttk.Button(
             navigation,
-            text="← Zurück",
-            command=self.previous_page
+            text="← 1",
+            command=lambda: self.change_page(-1)
         )
+        self.previous_button.pack(side=tk.LEFT)
 
-        self.previous_button.pack(
-            side=tk.LEFT
+        self.next_1000_button = ttk.Button(
+            navigation,
+            text="1000 →",
+            command=lambda: self.change_page(1000)
         )
+        self.next_1000_button.pack(side=tk.RIGHT)
 
+        self.next_100_button = ttk.Button(
+            navigation,
+            text="100 →",
+            command=lambda: self.change_page(100)
+        )
+        self.next_100_button.pack(side=tk.RIGHT)
+
+        self.next_10_button = ttk.Button(
+            navigation,
+            text="10 →",
+            command=lambda: self.change_page(10)
+        )
+        self.next_10_button.pack(side=tk.RIGHT)
+        
         self.next_button = ttk.Button(
             navigation,
-            text="Weiter →",
-            command=self.next_page
+            text="1 →",
+            command=lambda: self.change_page(1)
         )
-
-        self.next_button.pack(
-            side=tk.RIGHT
-        )
+        self.next_button.pack(side=tk.RIGHT)
 
         self.thumb_frame = ttk.Frame(left)
         self.thumb_frame.pack(
@@ -777,6 +820,37 @@ class SimilarityViewer:
             )
 
         self.load_page(0)
+
+    def change_page(self, amount):
+        new_page = self.current_page + amount
+
+        if new_page < 0:
+            new_page = 0
+
+        if new_page >= self.total_pages:
+            new_page = self.total_pages - 1
+
+        if new_page == self.current_page:
+            return
+
+        self.load_page(new_page)
+
+    def _on_top5_mousewheel(self, event):
+        x = self.root.winfo_pointerx()
+        y = self.root.winfo_pointery()
+
+        widget = self.root.winfo_containing(x, y)
+        
+        while widget is not None:
+
+            if widget == self.top5_canvas:
+                self.top5_canvas.xview_scroll(
+                    int(-event.delta / 10),
+                    "units"
+                )
+                return "break"
+
+            widget = widget.master
 
     def _update_thumbnail_scrollregion(self):
         """Keep the canvas window at the full virtual thumbnail-list size.
@@ -1062,7 +1136,70 @@ class SimilarityViewer:
                 else tk.DISABLED
             )
         )
+        
+        self.previous_1000_button.config(
+            state=(
+                tk.NORMAL
+                if self.current_page >= 1000
+                else tk.DISABLED
+            )
+        )
 
+        self.previous_100_button.config(
+            state=(
+                tk.NORMAL
+                if self.current_page >= 100
+                else tk.DISABLED
+            )
+        )
+
+        self.previous_10_button.config(
+            state=(
+                tk.NORMAL
+                if self.current_page >= 10
+                else tk.DISABLED
+            )
+        )
+
+        self.previous_button.config(
+            state=(
+                tk.NORMAL
+                if self.current_page >= 1
+                else tk.DISABLED
+            )
+        )
+
+        self.next_button.config(
+            state=(
+                tk.NORMAL
+                if self.current_page + 1 < self.total_pages
+                else tk.DISABLED
+            )
+        )
+
+        self.next_10_button.config(
+            state=(
+                tk.NORMAL
+                if self.current_page + 10 < self.total_pages
+                else tk.DISABLED
+            )
+        )
+
+        self.next_100_button.config(
+            state=(
+                tk.NORMAL
+                if self.current_page + 100 < self.total_pages
+                else tk.DISABLED
+            )
+        )
+
+        self.next_1000_button.config(
+            state=(
+                tk.NORMAL
+                if self.current_page + 1000 < self.total_pages
+                else tk.DISABLED
+            )
+        )
 
     def previous_page(self):
 
