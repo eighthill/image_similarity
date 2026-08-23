@@ -10,7 +10,7 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 import os
 
-from config import CANDIDATE_COUNT, MULTIPLE_CANDIDATE_COUNT, THUMB_SIZE, TOP_RESULT_SIZE
+from config import CANDIDATE_COUNT, MULTIPLE_CANDIDATE_COUNT, THUMB_SIZE, TOP_RESULT_SIZE, COLOR_WEIGHT, EMBEDDING_WEIGHT, HASH_WEIGHT
 from view.view_repository import calculate_similarities_for_reference, load_display_image
 
 class SimilarityViewer:
@@ -473,10 +473,10 @@ class SimilarityViewer:
             )
 
             combined_overall = (
-                combined_color
-                + combined_embedding
-                + combined_hash
-            ) / 3.0
+                combined_color * COLOR_WEIGHT
+                + combined_embedding * EMBEDDING_WEIGHT
+                + combined_hash * HASH_WEIGHT
+            )
 
             results.append(
                 (
@@ -1216,10 +1216,10 @@ class SimilarityViewer:
             hash_value = scores.get("hash", 0.0)
 
             overall = (
-                color +
-                embedding +
-                hash_value
-            ) / 3.0
+                color * COLOR_WEIGHT
+                + embedding * EMBEDDING_WEIGHT
+                + hash_value * HASH_WEIGHT
+            )
 
             results.append(
                 (

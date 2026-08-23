@@ -43,3 +43,11 @@ LOG_FILE = PROJECT_ROOT / "startup.log"
 
 IMAGE_FOLDER = "/Volumes/Extreme SSD/data/image_data/"
 LOGGER_ACTIVE = False
+
+# =========================
+# Weighting
+# =========================
+
+COLOR_WEIGHT = 0
+EMBEDDING_WEIGHT = 1
+HASH_WEIGHT = 0
