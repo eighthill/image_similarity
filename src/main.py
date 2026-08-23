@@ -10,7 +10,7 @@ from pathlib import Path
 
 from database.database import Database
 from database.repository import ImageRepository
-from embedding_index import EmbeddingIndex
+from embedding.embedding_index import EmbeddingIndex
 
 from view.similarity_viewer import SimilarityViewer
 from view.view_repository import initialize_database, process_images, backfill_color_histograms, repair_similarity_values, embedding_builder

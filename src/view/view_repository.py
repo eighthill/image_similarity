@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 from image_loader.generator import image_generator
 from embedding.extractor import extract_embeddings
-from embedding_index import EmbeddingIndex
+from embedding.embedding_index import EmbeddingIndex
 
 from similarity.color_similarity import (color_similarity, calculate_color_histogram, color_similarity_from_histograms)
 from similarity.embedding_similarity import embedding_similarity
