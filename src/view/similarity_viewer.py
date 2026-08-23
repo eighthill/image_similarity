@@ -1216,14 +1216,14 @@ class SimilarityViewer:
         if sort_column == "image":
             ranked_results = sorted(
                 results,
-                key=lambda row:
-                self.repo.get_image_by_id(row[1])["filename"].lower()
+                key=lambda row: self.image_by_id[row[1]]["filename"].lower(),
+                reverse=self.sort_descending
             )
         else:
             ranked_results = sorted(
                 results,
                 key=lambda row: row[index[sort_column]],
-                reverse=True
+                reverse=self.sort_descending
             )
 
         method_names = {
