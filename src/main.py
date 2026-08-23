@@ -450,26 +450,26 @@ def calculate_similarities_for_reference(
         flush=True,
     )
 
-    print(
-        "embedding:",
-        ref_embedding.shape,
-        ref_embedding.dtype,
-        ref_embedding.flags["C_CONTIGUOUS"],
-        flush=True,
-    )
+    #print(
+    #    "embedding:",
+    #    ref_embedding.shape,
+    #    ref_embedding.dtype,
+    #    ref_embedding.flags["C_CONTIGUOUS"],
+    #    flush=True,
+    #)
 
-    print("Before FAISS search", flush=True)
+    #print("Before FAISS search", flush=True)
 
     candidates = embedding_index.search(
         ref_embedding,
         k=candidate_count,
     )
 
-    print(
-        "After FAISS search:",
-        len(candidates),
-        flush=True,
-    )
+    #print(
+    #    "After FAISS search:",
+    #    len(candidates),
+    #    flush=True,
+    #)
 
     # Referenz-Hash
     ref_hash = imagehash.hex_to_hash(
@@ -546,6 +546,7 @@ class SimilarityViewer:
         self.image_by_id = {}
         self.photo_refs = {}
         self.selected_id = None
+        self.selected_reference_ids = set()
         self.current_results = []
         self.sort_column = "overall"
         self.sort_descending = True
@@ -829,6 +830,30 @@ class SimilarityViewer:
         )
         self.next_button.pack(side=tk.RIGHT)
 
+        self.multi_selection_frame = ttk.Frame(left)
+
+        self.multi_selection_label = ttk.Label(
+            self.multi_selection_frame,
+            text=""
+        )
+
+        self.multi_selection_label.pack(
+            side=tk.LEFT,
+            padx=(0, 10)
+        )
+
+        self.confirm_selection_button = ttk.Button(
+            self.multi_selection_frame,
+            text="Auswahl bestätigen",
+            command=self.confirm_multi_selection
+        )
+
+        self.confirm_selection_button.pack(
+            side=tk.LEFT
+        )
+
+        self.multi_selection_frame.pack_forget()
+
         self.thumb_frame = ttk.Frame(left)
         self.thumb_frame.pack(
             fill=tk.BOTH,
@@ -842,6 +867,206 @@ class SimilarityViewer:
             )
 
         self.load_page(0)
+
+    def confirm_multi_selection(self):
+
+        if len(self.selected_reference_ids) < 2:
+            return
+
+        reference_ids = list(self.selected_reference_ids)
+
+        print(
+            "MULTI START:",
+            reference_ids,
+            flush=True
+        )
+
+        similarity_maps = []
+
+        for reference_id in reference_ids:
+
+            print(
+                f"Starting reference {reference_id}",
+                flush=True
+            )
+
+            similarity_map = calculate_similarities_for_reference(
+                self.repo,
+                reference_id,
+                self.embedding_index,
+                candidate_count=5,
+            )
+
+            print(
+                f"Finished reference {reference_id}: "
+                f"{len(similarity_map)} candidates",
+                flush=True
+            )
+
+            similarity_maps.append(similarity_map)
+
+        print(
+            "All similarity searches finished",
+            flush=True
+        )
+
+        candidate_ids = set()
+
+        for similarity_map in similarity_maps:
+            candidate_ids.update(similarity_map.keys())
+
+        results = []
+
+        reference_count = len(similarity_maps)
+
+        for image_id in candidate_ids:
+
+            if image_id in self.selected_reference_ids:
+                continue
+
+            color_scores = []
+            embedding_scores = []
+            hash_scores = []
+            overall_scores = []
+
+            for similarity_map in similarity_maps:
+
+                scores = similarity_map.get(image_id)
+
+                if scores is None:
+                    continue
+
+                color_scores.append(
+                    scores.get("color", 0.0)
+                )
+
+                embedding_scores.append(
+                    scores.get("embedding", 0.0)
+                )
+
+                hash_scores.append(
+                    scores.get("hash", 0.0)
+                )
+
+                overall_scores.append(
+                    (
+                        scores.get("color", 0.0)
+                        + scores.get("embedding", 0.0)
+                        + scores.get("hash", 0.0)
+                    ) / 3.0
+                )
+
+            results.sort(
+                key=lambda row: row[0],
+                reverse=True
+            )
+
+            self.current_results = results
+
+            self.sort_column = "overall"
+            self.sort_descending = True
+            
+            self._show_top5(
+                self.current_results,
+                self.sort_column,
+            )
+
+            self._render_results_table()
+            self._update_heading_labels()
+
+            if not overall_scores:
+                continue
+
+            combined_color = (
+                sum(color_scores) / len(color_scores)
+            )
+
+            combined_embedding = (
+                sum(embedding_scores) / len(embedding_scores)
+            )
+
+            combined_hash = (
+                sum(hash_scores) / len(hash_scores)
+            )
+
+            combined_overall = (
+                combined_color
+                + combined_embedding
+                + combined_hash
+            ) / 3.0
+
+            results.append(
+                (
+                    combined_overall,
+                    image_id,
+                    combined_color,
+                    combined_embedding,
+                    combined_hash,
+                )
+            )
+
+        results.sort(
+            key=lambda row: row[0],
+            reverse=True
+        )
+
+        print(
+            "Multi-reference candidates:",
+            len(results),
+            flush=True
+        )
+
+        for rank, (
+            overall,
+            image_id,
+            color,
+            embedding,
+            hash_value
+        ) in enumerate(
+            results[:5],
+            start=1
+        ):
+
+            image = self.repo.get_image_by_id(image_id)
+
+            if image is None:
+                continue
+
+            print(
+                f"#{rank}",
+                image["filename"],
+                f"overall={overall:.4f}",
+                f"color={color:.4f}",
+                f"embedding={embedding:.4f}",
+                f"hash={hash_value:.4f}",
+                flush=True
+            )
+
+    def _update_multi_selection_ui(self):
+
+        count = len(self.selected_reference_ids)
+
+        if count >= 1:
+            self.multi_selection_frame.pack(
+                fill=tk.X,
+                pady=(5, 0)
+            )
+
+            self.multi_selection_label.config(
+                text=f"{count} Bild"
+                + (" ausgewählt" if count == 1 else "er ausgewählt")
+            )
+
+            self.confirm_selection_button.config(
+                state=(
+                    tk.NORMAL
+                    if count >= 2
+                    else tk.DISABLED
+                )
+            )
+
+        else:
+            self.multi_selection_frame.pack_forget()
 
     def _go_to_entered_page(self, event=None):
         try:
@@ -1054,7 +1279,7 @@ class SimilarityViewer:
             image_label.bind(
                 "<Button-1>",
                 lambda e, image_id=row["id"]:
-                    self.select_reference(image_id)
+                    self.handle_thumbnail_click(e, image_id)
             )
 
         except Exception as e:
@@ -1085,7 +1310,7 @@ class SimilarityViewer:
         name.bind(
             "<Button-1>",
             lambda e, image_id=row["id"]:
-                self.select_reference(image_id)
+                self.handle_thumbnail_click(e, image_id)
         )
 
         self.thumb_widgets[index] = frame
@@ -1328,7 +1553,7 @@ class SimilarityViewer:
                 image_label.bind(
                     "<Button-1>",
                     lambda e, image_id=row["id"]:
-                        self.select_reference(image_id)
+                        self.handle_thumbnail_click(e, image_id)
                 )
 
             except Exception as e:
@@ -1359,7 +1584,7 @@ class SimilarityViewer:
             name.bind(
                 "<Button-1>",
                 lambda e, image_id=row["id"]:
-                    self.select_reference(image_id)
+                    self.handle_thumbnail_click(e, image_id)
             )
 
     def _clear_top5(self):
@@ -1371,27 +1596,52 @@ class SimilarityViewer:
         self._clear_top5()
 
         # -------------------------------------------------
-        # Referenzbild ganz links anzeigen
+        # Referenzbilder ganz links anzeigen
         # -------------------------------------------------
-        if self.selected_id is not None:
-            reference = self.image_by_id[self.selected_id]
+
+        reference_ids = []
+
+        # Multi-Reference
+        if len(self.selected_reference_ids) >= 2:
+            reference_ids = list(self.selected_reference_ids)
+
+        # Normale Einzelreferenz
+        elif self.selected_id is not None:
+            reference_ids = [self.selected_id]
+
+
+        for reference_column, reference_id in enumerate(reference_ids):
+
+            reference = self.repo.get_image_by_id(
+                reference_id
+            )
+
+            if reference is None:
+                continue
 
             ref_card = ttk.Frame(
                 self.top5_frame,
                 padding=6,
                 relief="ridge"
             )
+
             ref_card.grid(
                 row=1,
-                column=0,
+                column=reference_column,
                 padx=(5, 15),
                 pady=3,
                 sticky="n"
             )
 
             try:
-                img = load_display_image(reference["filepath"])
-                img.thumbnail(TOP_RESULT_SIZE)
+
+                img = load_display_image(
+                    reference["filepath"]
+                )
+
+                img.thumbnail(
+                    TOP_RESULT_SIZE
+                )
 
                 ref_image = Image.new(
                     "RGB",
@@ -1399,40 +1649,67 @@ class SimilarityViewer:
                     "white"
                 )
 
-                x = (TOP_RESULT_SIZE[0] - img.width) // 2
-                y = (TOP_RESULT_SIZE[1] - img.height) // 2
+                x = (
+                    TOP_RESULT_SIZE[0]
+                    - img.width
+                ) // 2
 
-                ref_image.paste(img, (x, y))
+                y = (
+                    TOP_RESULT_SIZE[1]
+                    - img.height
+                ) // 2
 
-                photo = ImageTk.PhotoImage(ref_image)
+                ref_image.paste(
+                    img,
+                    (x, y)
+                )
+
+                photo = ImageTk.PhotoImage(
+                    ref_image
+                )
+
                 self.top5_refs.append(photo)
 
                 image_label = tk.Label(
                     ref_card,
                     image=photo
                 )
+
                 image_label.pack()
 
             except Exception as exc:
+
                 ttk.Label(
                     ref_card,
                     text=f"Bild nicht verfügbar\n{exc}",
                     width=28,
                     anchor="center"
-                ).pack(pady=40)
+                ).pack(
+                    pady=40
+                )
+
+            # Unterschiedliche Beschriftung
+            if len(reference_ids) >= 2:
+                label_text = f"REFERENZ {reference_column + 1}"
+            else:
+                label_text = "REFERENZ"
 
             ttk.Label(
                 ref_card,
-                text="REFERENZ",
+                text=label_text,
                 font=("TkDefaultFont", 11, "bold")
-            ).pack(pady=(5, 2))
+            ).pack(
+                pady=(5, 2)
+            )
 
             ttk.Label(
                 ref_card,
                 text=reference["filename"],
                 wraplength=210,
                 justify="center"
-            ).pack(fill=tk.X)
+            ).pack(
+                fill=tk.X
+            )
 
         # -------------------------------------------------
         # Top-5 wie bisher
@@ -1472,13 +1749,12 @@ class SimilarityViewer:
             font=("TkDefaultFont", 11, "bold")
         ).grid(
             row=0,
-            column=1,
+            column=len(reference_ids),
             columnspan=5,
             sticky="w",
             pady=(0, 5)
         )
 
-        # Die fünf Treffer beginnen jetzt bei column=1
         for rank, (
             overall,
             image_id,
@@ -1497,9 +1773,11 @@ class SimilarityViewer:
                 padding=6,
                 relief="ridge"
             )
+            reference_count = len(reference_ids)
+
             card.grid(
                 row=1,
-                column=rank,
+                column=reference_count + rank - 1,
                 padx=5,
                 pady=3,
                 sticky="n"
@@ -1653,6 +1931,22 @@ class SimilarityViewer:
                     f"{hash_value:.4f}",
                 ),
             )
+
+    def handle_thumbnail_click(self, event, image_id):
+        # Shift gedrückt?
+        if event.state & 0x0001:
+            if image_id in self.selected_reference_ids:
+                self.selected_reference_ids.remove(image_id)
+            else:
+                self.selected_reference_ids.add(image_id)
+
+            self._update_multi_selection_ui()
+            return
+
+        # Normaler Klick
+        self.selected_reference_ids.clear()
+        self.select_reference(image_id)
+        self._update_multi_selection_ui()
 
     def select_reference(self, reference_id):
         self.selected_id = reference_id
