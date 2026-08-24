@@ -1465,11 +1465,15 @@ class SimilarityViewer:
         width = scale.winfo_width()
 
         if width <= 1:
-            return "break"
+            return
 
-        x = event.x
-        x = max(0, min(x, width))
+        x = max(0, min(event.x, width))
         value = x / width
-        variable.set(value)
-        self._update_weight_labels()
-        return "break"
+
+        scale.after(
+            1,
+            lambda: (
+                variable.set(value),
+                self._update_weight_labels()
+            )
+        )
