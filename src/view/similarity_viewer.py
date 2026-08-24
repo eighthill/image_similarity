@@ -36,6 +36,10 @@ class SimilarityViewer:
         self.current_results = []
         self.sort_column = "overall"
         self.sort_descending = True
+        
+        self.color_weight = tk.DoubleVar(value=0.33)
+        self.embedding_weight = tk.DoubleVar(value=0.33)
+        self.hash_weight = tk.DoubleVar(value=0.33)
 
         root.title("Image Similarity Explorer")
         screen_width = root.winfo_screenwidth()
@@ -71,6 +75,7 @@ class SimilarityViewer:
             font=("TkDefaultFont", 12, "bold")
         ).pack(anchor="w", pady=(0, 6))
 
+        self._build_weight_controls(right)
 
         self.top5_canvas = tk.Canvas(
             right,
@@ -147,7 +152,7 @@ class SimilarityViewer:
 
         headings = {
             "image": "Bild",
-            "overall": "Gesamt",
+            "overall": "Gewichtet",
             "color": "Farbe",
             "embedding": "Embedding",
             "hash": "Hash",
@@ -198,7 +203,7 @@ class SimilarityViewer:
         )
 
         self.results.heading("image", text="Bild")
-        self.results.heading("overall", text="Gesamt")
+        self.results.heading("overall", text="Gewichtet")
         self.results.heading("color", text="Farbe")
         self.results.heading("embedding", text="Embedding")
         self.results.heading("hash", text="Hash")
@@ -473,9 +478,9 @@ class SimilarityViewer:
             )
 
             combined_overall = (
-                combined_color * COLOR_WEIGHT
-                + combined_embedding * EMBEDDING_WEIGHT
-                + combined_hash * HASH_WEIGHT
+                combined_color * self.color_weight.get()
+                + combined_embedding * self.embedding_weight.get()
+                + combined_hash * self.hash_weight.get()
             )
 
             results.append(
@@ -961,7 +966,7 @@ class SimilarityViewer:
             )
 
         method_names = {
-            "overall": "Gesamt",
+            "overall": "Gewichtet",
             "color": "Farbe",
             "embedding": "Embedding",
             "hash": "Hash",
@@ -1068,14 +1073,14 @@ class SimilarityViewer:
             if selected_score is not None:
                 ttk.Label(
                     card,
-                    text=f"{method_names[sort_column]}: {selected_score:.4f}",
+                    text=f"Gewichtet: {selected_score:.4f}",
                     font=("TkDefaultFont", 10, "bold")
                 ).pack()
 
             ttk.Label(
                 card,
                 text=(
-                    f"Gesamt {overall:.4f}\n"
+                    #f"Gewichtet {overall:.4f}\n"
                     f"Farbe {color:.4f}\n"
                     f"Embedding {embedding:.4f}\n"
                     f"Hash {hash_value:.4f}"
@@ -1086,7 +1091,7 @@ class SimilarityViewer:
     def _update_heading_labels(self):
         labels = {
             "image": "Bild",
-            "overall": "Gesamt",
+            "overall": "Gewichtet",
             "color": "Farbe",
             "embedding": "Embedding",
             "hash": "Hash",
@@ -1216,9 +1221,9 @@ class SimilarityViewer:
             hash_value = scores.get("hash", 0.0)
 
             overall = (
-                color * COLOR_WEIGHT
-                + embedding * EMBEDDING_WEIGHT
-                + hash_value * HASH_WEIGHT
+                color * self.color_weight.get()
+                + embedding * self.embedding_weight.get()
+                + hash_value * self.hash_weight.get()
             )
 
             results.append(
@@ -1251,3 +1256,179 @@ class SimilarityViewer:
         
         self.selected_reference_ids.clear()
         self._update_multi_selection_ui()
+    
+    def _build_weight_controls(self, parent):
+
+        frame = ttk.LabelFrame(
+            parent,
+            text="Similarity-Gewichtung",
+            padding=10
+        )
+
+        frame.pack(
+            fill=tk.X,
+            pady=(0, 10)
+        )
+
+        self.color_weight_label = ttk.Label(frame)
+        self.color_weight_label.grid(
+            row=0,
+            column=0,
+            sticky="w"
+        )
+
+        color_scale = ttk.Scale(
+            frame,
+            from_=0,
+            to=1,
+            variable=self.color_weight,
+            orient=tk.HORIZONTAL,
+            command=self._update_weight_labels
+        )
+
+        color_scale.grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            padx=10
+        )
+
+        self.embedding_weight_label = ttk.Label(frame)
+        self.embedding_weight_label.grid(
+            row=1,
+            column=0,
+            sticky="w"
+        )
+
+        embedding_scale = ttk.Scale(
+            frame,
+            from_=0,
+            to=1,
+            variable=self.embedding_weight,
+            orient=tk.HORIZONTAL,
+            command=self._update_weight_labels
+        )
+
+        embedding_scale.grid(
+            row=1,
+            column=1,
+            sticky="ew",
+            padx=10
+        )
+
+        self.hash_weight_label = ttk.Label(frame)
+        self.hash_weight_label.grid(
+            row=2,
+            column=0,
+            sticky="w"
+        )
+
+        hash_scale = ttk.Scale(
+            frame,
+            from_=0,
+            to=1,
+            variable=self.hash_weight,
+            orient=tk.HORIZONTAL,
+            command=self._update_weight_labels
+        )
+
+        hash_scale.grid(
+            row=2,
+            column=1,
+            sticky="ew",
+            padx=10
+        )
+
+        frame.columnconfigure(1, weight=1)
+
+        ttk.Button(
+            frame,
+            text="Gewichtung anwenden",
+            command=self._apply_weights
+        ).grid(
+            row=3,
+            column=0,
+            columnspan=2,
+            pady=(8, 0)
+        )
+
+        self._update_weight_labels()
+    
+    def _update_weight_labels(self, *args):
+
+        self.color_weight_label.config(
+            text=f"Farbe: {self.color_weight.get() * 100:.0f}%"
+        )
+
+        self.embedding_weight_label.config(
+            text=f"Embedding: {self.embedding_weight.get() * 100:.0f}%"
+        )
+
+        self.hash_weight_label.config(
+            text=f"Hash: {self.hash_weight.get() * 100:.0f}%"
+        )
+    
+    def _apply_weights(self):
+
+        color = self.color_weight.get()
+        embedding = self.embedding_weight.get()
+        hash_value = self.hash_weight.get()
+
+        total = color + embedding + hash_value
+
+        if total == 0:
+            return
+
+        color /= total
+        embedding /= total
+        hash_value /= total
+
+        self.color_weight.set(color)
+        self.embedding_weight.set(embedding)
+        self.hash_weight.set(hash_value)
+
+        self._update_weight_labels()
+
+        if not self.current_results:
+            return
+
+        new_results = []
+
+        for (
+            _overall,
+            image_id,
+            color_score,
+            embedding_score,
+            hash_score
+        ) in self.current_results:
+
+            overall = (
+                color_score * color
+                + embedding_score * embedding
+                + hash_score * hash_value
+            )
+
+            new_results.append(
+                (
+                    overall,
+                    image_id,
+                    color_score,
+                    embedding_score,
+                    hash_score,
+                )
+            )
+
+        self.current_results = new_results
+
+        self.current_results.sort(
+            key=lambda row: row[0],
+            reverse=self.sort_descending
+        )
+
+        self._show_top5(
+            self.current_results,
+            self.sort_column
+        )
+
+        self._render_results_table()
+        self._update_heading_labels()
