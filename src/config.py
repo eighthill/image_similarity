@@ -28,7 +28,7 @@ MULTIPLE_CANDIDATE_COUNT = 5
 PAGE_SIZE = 15
 TOP_RESULTS = 5
 
-THUMB_SIZE = (150, 110)
+THUMB_SIZE = (140, 90)
 TOP_RESULT_SIZE = (210, 155)
 
 # =========================
@@ -45,7 +45,7 @@ IMAGE_FOLDER = "/Volumes/Extreme SSD/data/image_data/"
 LOGGER_ACTIVE = False
 
 # =========================
-# Weighting
+# Initial Weighting
 # =========================
 
 COLOR_WEIGHT = 0.33

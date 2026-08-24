@@ -153,7 +153,7 @@ def repair_similarity_values(db):
         print(f"Repaired {repaired} legacy similarity values in the database.")
 
 
-def process_images(repo):
+def process_images(repo, progress_callback=None):
     imported = 0
     skipped = 0
     repaired = 0
@@ -167,6 +167,14 @@ def process_images(repo):
         for row in repo.get_existing_image_paths()
     }
 
+    image_paths = [
+        str(filepath)
+        for filepath in image_generator(IMAGE_FOLDER)
+    ]
+
+    total = len(image_paths)
+
+    print(f"Found {total} image files.")
     print(f"Loaded {len(existing_images)} existing image records from database.")
     print(f"Image loading workers: {io_workers}")
 
@@ -190,6 +198,13 @@ def process_images(repo):
                 if processed % 1000 == 0:
                     print(f"Processed: {processed}")
 
+                    if progress_callback:
+                        progress_callback(
+                            processed,
+                            total,
+                            "Verarbeite Bilder..."
+                        )
+
                 if error is not None:
                     #print(f"Skipping image: {filepath} -> {error}")
                     continue
@@ -203,6 +218,18 @@ def process_images(repo):
                     and existing["has_color_histogram"]
                 ):
                     skipped += 1
+                    processed += 1
+
+                    if processed % 1000 == 0:
+                        print(f"Processed: {processed}")
+
+                        if progress_callback:
+                            progress_callback(
+                                processed,
+                                total,
+                                "Verarbeite Bilder..."
+                            )
+
                     continue
 
                 batch.append((image, str(filepath), existing))
@@ -213,7 +240,7 @@ def process_images(repo):
             repaired += repaired_delta
             repo.db.commit()
 
-    for filepath in image_generator(IMAGE_FOLDER):
+    for filepath in image_paths:
         filepath = str(filepath)
 
         existing = existing_images.get(filepath)
@@ -227,6 +254,14 @@ def process_images(repo):
             processed += 1
             if processed % 1000 == 0:
                 print(f"Processed: {processed}")
+                
+                if progress_callback:
+                    progress_callback(
+                        processed,
+                        total,
+                        "Verarbeite Bilder..."
+                    )
+
             continue
 
         pending_paths.append(filepath)
@@ -236,6 +271,13 @@ def process_images(repo):
 
     flush_paths(pending_paths)
     repo.db.commit()
+
+    if progress_callback:
+        progress_callback(
+            total,
+            total,
+            "Verarbeite Bilder..."
+        )
 
     if LOGGER_ACTIVE:
         logging.info(
@@ -545,7 +587,7 @@ def calculate_histogram_worker(row):
         #return row["id"], None, 0, 0, 0
         pass
 
-def backfill_color_histograms(repo):
+def backfill_color_histograms(repo, progress_callback=None):
 
     rows = repo.get_images_missing_color_histogram()
     print(f"Rows missing histogram: {len(rows)}")
@@ -606,6 +648,21 @@ def backfill_color_histograms(repo):
                 print(
                     f"Color histograms: {processed}/{total}"
                 )
+                
+                if progress_callback:
+                    progress_callback(
+                        processed,
+                        total,
+                        "Berechne Farbhistogramme..."
+                    )
+
+                print(
+                    f"Last image: "
+                    f"load={load_time:.3f}s | "
+                    f"convert={convert_time:.3f}s | "
+                    f"histogram={histogram_time:.3f}s"
+                )
+                
                 print(
                     f"Last image: "
                     f"load={load_time:.3f}s | "
