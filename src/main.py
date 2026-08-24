@@ -163,7 +163,7 @@ def main():
         
         update_progress(
             25,
-            "Lade Bilder...\n0 / ?"
+            "Importiere Bilder... 0 / ?"
         )
 
         process_images(

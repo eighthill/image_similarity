@@ -29,7 +29,7 @@ PAGE_SIZE = 15
 TOP_RESULTS = 5
 
 THUMB_SIZE = (140, 90)
-TOP_RESULT_SIZE = (210, 155)
+TOP_RESULT_SIZE = (200, 125)
 
 # =========================
 # Logging

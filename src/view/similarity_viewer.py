@@ -37,9 +37,9 @@ class SimilarityViewer:
         self.sort_column = "overall"
         self.sort_descending = True
         
-        self.color_weight = tk.DoubleVar(value=0.33)
-        self.embedding_weight = tk.DoubleVar(value=0.33)
-        self.hash_weight = tk.DoubleVar(value=0.33)
+        self.color_weight = tk.DoubleVar(value=COLOR_WEIGHT)
+        self.embedding_weight = tk.DoubleVar(value=EMBEDDING_WEIGHT)
+        self.hash_weight = tk.DoubleVar(value=HASH_WEIGHT)
 
         root.title("Image Similarity Explorer")
         screen_width = root.winfo_screenwidth()
@@ -77,147 +77,15 @@ class SimilarityViewer:
 
         self._build_weight_controls(right)
 
-        self.top5_canvas = tk.Canvas(
-            right,
-            highlightthickness=0,
-            height=340
-        )
+        self.top5_frame = ttk.Frame(right)
 
-        self.top5_scrollbar = ttk.Scrollbar(
-            right,
-            orient="horizontal",
-            command=self.top5_canvas.xview
-        )
-
-        self.top5_frame = ttk.Frame(
-            self.top5_canvas
-        )
-
-        self.top5_window = self.top5_canvas.create_window(
-            (0, 0),
-            window=self.top5_frame,
-            anchor="nw"
-        )
-
-        self.top5_canvas.configure(
-            xscrollcommand=self.top5_scrollbar.set
-        )
-
-        self.top5_canvas.pack(
+        self.top5_frame.pack(
             fill=tk.X,
-            expand=False
-        )
-
-        self.top5_scrollbar.pack(
-            fill=tk.X,
+            expand=False,
             pady=(0, 10)
         )
 
-        self.top5_frame.bind(
-            "<Configure>",
-            lambda e: self.top5_canvas.configure(
-                scrollregion=self.top5_canvas.bbox("all")
-            )
-        )
-
         self.top5_refs = []
-
-
-        ttk.Label(
-            right,
-            text="Alle Treffer",
-            font=("TkDefaultFont", 12, "bold")
-        ).pack(anchor="w", pady=(0, 6))
-
-
-        results_container = ttk.Frame(right)
-        results_container.pack(
-            fill=tk.BOTH,
-            expand=True
-        )
-
-
-        self.results = ttk.Treeview(
-            results_container,
-            columns=(
-                "image",
-                "overall",
-                "color",
-                "embedding",
-                "hash"
-            ),
-            show="headings",
-            height=8
-        )
-
-        headings = {
-            "image": "Bild",
-            "overall": "Gewichtet",
-            "color": "Farbe",
-            "embedding": "Embedding",
-            "hash": "Hash",
-        }
-
-        widths = {
-            "image": 360,
-            "overall": 90,
-            "color": 90,
-            "embedding": 100,
-            "hash": 90,
-        }
-
-        for col in headings:
-
-            self.results.heading(
-                col,
-                text=headings[col],
-                command=lambda c=col: self.sort_results(c)
-            )
-
-            self.results.column(
-                col,
-                width=widths[col],
-                anchor="center" if col != "image" else "w"
-            )
-
-
-        results_scrollbar = ttk.Scrollbar(
-            results_container,
-            orient="vertical",
-            command=self.results.yview
-        )
-
-        self.results.configure(
-            yscrollcommand=results_scrollbar.set
-        )
-
-        self.results.pack(
-            side=tk.LEFT,
-            fill=tk.BOTH,
-            expand=True
-        )
-
-        results_scrollbar.pack(
-            side=tk.RIGHT,
-            fill=tk.Y
-        )
-
-        self.results.heading("image", text="Bild")
-        self.results.heading("overall", text="Gewichtet")
-        self.results.heading("color", text="Farbe")
-        self.results.heading("embedding", text="Embedding")
-        self.results.heading("hash", text="Hash")
-
-        self.results.column("image", width=220)
-        self.results.column("overall", width=80)
-        self.results.column("color", width=80)
-        self.results.column("embedding", width=90)
-        self.results.column("hash", width=80)
-
-        self.results.pack(
-            fill=tk.BOTH,
-            expand=True
-        )
 
         ttk.Label(left, text="Referenzbild auswählen", font=("TkDefaultFont", 14, "bold")).pack(anchor="w")
         ttk.Label(left, text="Klick auf ein Bild → rechts werden die ähnlichsten Bilder angezeigt.").pack(anchor="w", pady=(2, 10))
@@ -360,7 +228,6 @@ class SimilarityViewer:
             return
 
         reference_ids = list(self.selected_reference_ids)
-
         self.displayed_reference_ids = reference_ids
 
         print(
@@ -399,26 +266,22 @@ class SimilarityViewer:
         )
 
         candidate_ids = set()
-
         for similarity_map in similarity_maps:
             candidate_ids.update(similarity_map.keys())
 
         results = []
 
-        reference_count = len(similarity_maps)
-
         for image_id in candidate_ids:
 
+            # Die ausgewählten Referenzbilder selbst nicht als Treffer anzeigen.
             if image_id in self.selected_reference_ids:
                 continue
 
             color_scores = []
             embedding_scores = []
             hash_scores = []
-            overall_scores = []
 
             for similarity_map in similarity_maps:
-
                 scores = similarity_map.get(image_id)
 
                 if scores is None:
@@ -427,55 +290,21 @@ class SimilarityViewer:
                 color_scores.append(
                     scores.get("color", 0.0)
                 )
-
                 embedding_scores.append(
                     scores.get("embedding", 0.0)
                 )
-
                 hash_scores.append(
                     scores.get("hash", 0.0)
                 )
 
-                overall_scores.append(
-                    (
-                        scores.get("color", 0.0)
-                        + scores.get("embedding", 0.0)
-                        + scores.get("hash", 0.0)
-                    ) / 3.0
-                )
-
-            results.sort(
-                key=lambda row: row[0],
-                reverse=True
-            )
-
-            self.current_results = results
-
-            self.sort_column = "overall"
-            self.sort_descending = True
-            
-            self._show_top5(
-                self.current_results,
-                self.sort_column,
-            )
-
-            self._render_results_table()
-            self._update_heading_labels()
-
-            if not overall_scores:
+            if not color_scores:
                 continue
 
-            combined_color = (
-                sum(color_scores) / len(color_scores)
-            )
-
+            combined_color = sum(color_scores) / len(color_scores)
             combined_embedding = (
                 sum(embedding_scores) / len(embedding_scores)
             )
-
-            combined_hash = (
-                sum(hash_scores) / len(hash_scores)
-            )
+            combined_hash = sum(hash_scores) / len(hash_scores)
 
             combined_overall = (
                 combined_color * self.color_weight.get()
@@ -498,10 +327,19 @@ class SimilarityViewer:
             reverse=True
         )
 
+        self.current_results = results
+        self.sort_column = "overall"
+        self.sort_descending = True
+
         print(
             "Multi-reference candidates:",
             len(results),
             flush=True
+        )
+
+        self._show_top5(
+            self.current_results,
+            self.sort_column,
         )
 
         for rank, (
@@ -510,13 +348,9 @@ class SimilarityViewer:
             color,
             embedding,
             hash_value
-        ) in enumerate(
-            results[:5],
-            start=1
-        ):
+        ) in enumerate(results[:5], start=1):
 
             image = self.repo.get_image_by_id(image_id)
-
             if image is None:
                 continue
 
@@ -529,7 +363,7 @@ class SimilarityViewer:
                 f"hash={hash_value:.4f}",
                 flush=True
             )
-        
+
         self.selected_reference_ids.clear()
         self._update_multi_selection_ui()
 
@@ -828,121 +662,17 @@ class SimilarityViewer:
         self._clear_top5()
 
         # -------------------------------------------------
-        # Referenzbilder ganz links anzeigen
+        # Referenzbilder bestimmen
         # -------------------------------------------------
-
         reference_ids = []
 
         if self.displayed_reference_ids:
             reference_ids = list(self.displayed_reference_ids)
-
         elif self.selected_id is not None:
             reference_ids = [self.selected_id]
 
-
-        for reference_column, reference_id in enumerate(reference_ids):
-
-            reference = self.repo.get_image_by_id(
-                reference_id
-            )
-
-            if reference is None:
-                continue
-
-            ref_card = ttk.Frame(
-                self.top5_frame,
-                padding=6,
-                relief="ridge"
-            )
-
-            ref_card.grid(
-                row=1,
-                column=reference_column,
-                padx=(5, 15),
-                pady=3,
-                sticky="n"
-            )
-
-            try:
-
-                img = load_display_image(
-                    reference["filepath"]
-                )
-
-                img.thumbnail(
-                    TOP_RESULT_SIZE
-                )
-
-                ref_image = Image.new(
-                    "RGB",
-                    TOP_RESULT_SIZE,
-                    "white"
-                )
-
-                x = (
-                    TOP_RESULT_SIZE[0]
-                    - img.width
-                ) // 2
-
-                y = (
-                    TOP_RESULT_SIZE[1]
-                    - img.height
-                ) // 2
-
-                ref_image.paste(
-                    img,
-                    (x, y)
-                )
-
-                photo = ImageTk.PhotoImage(
-                    ref_image
-                )
-
-                self.top5_refs.append(photo)
-
-                image_label = tk.Label(
-                    ref_card,
-                    image=photo
-                )
-
-                image_label.pack()
-
-            except Exception as exc:
-
-                ttk.Label(
-                    ref_card,
-                    text=f"Bild nicht verfügbar\n{exc}",
-                    width=28,
-                    anchor="center"
-                ).pack(
-                    pady=40
-                )
-
-            # Unterschiedliche Beschriftung
-            if len(reference_ids) >= 2:
-                label_text = f"REFERENZ {reference_column + 1}"
-            else:
-                label_text = "REFERENZ"
-
-            ttk.Label(
-                ref_card,
-                text=label_text,
-                font=("TkDefaultFont", 11, "bold")
-            ).pack(
-                pady=(5, 2)
-            )
-
-            ttk.Label(
-                ref_card,
-                text=reference["filename"],
-                wraplength=210,
-                justify="center"
-            ).pack(
-                fill=tk.X
-            )
-
         # -------------------------------------------------
-        # Top-5 wie bisher
+        # Ergebnisse sortieren
         # -------------------------------------------------
         index = {
             "overall": 0,
@@ -953,9 +683,13 @@ class SimilarityViewer:
         }
 
         if sort_column == "image":
+            def image_name(result):
+                image = self.repo.get_image_by_id(result[1])
+                return image["filename"].lower() if image else ""
+
             ranked_results = sorted(
                 results,
-                key=lambda row: self.image_by_id[row[1]]["filename"].lower(),
+                key=image_name,
                 reverse=self.sort_descending
             )
         else:
@@ -967,11 +701,25 @@ class SimilarityViewer:
 
         method_names = {
             "overall": "Gewichtet",
+            "image": "Bild",
             "color": "Farbe",
             "embedding": "Embedding",
             "hash": "Hash",
-            "image": "Bild",
         }
+
+        # -------------------------------------------------
+        # Layout
+        # -------------------------------------------------
+        # 0 = Referenzen, 1 = Referenz-Scrollbar,
+        # 2/3 = Top-5-Ergebnisse
+        for column in range(4):
+            self.top5_frame.columnconfigure(
+                column,
+                weight=0
+            )
+
+        self.top5_frame.columnconfigure(2, weight=1)
+        self.top5_frame.columnconfigure(3, weight=1)
 
         ttk.Label(
             self.top5_frame,
@@ -979,11 +727,157 @@ class SimilarityViewer:
             font=("TkDefaultFont", 11, "bold")
         ).grid(
             row=0,
-            column=len(reference_ids),
-            columnspan=5,
+            column=2,
+            columnspan=2,
             sticky="w",
             pady=(0, 5)
         )
+
+        # -------------------------------------------------
+        # Referenzbereich
+        # -------------------------------------------------
+        if reference_ids:
+            reference_canvas = tk.Canvas(
+                self.top5_frame,
+                width=220,
+                height=450,
+                highlightthickness=0
+            )
+
+            reference_scrollbar = ttk.Scrollbar(
+                self.top5_frame,
+                orient="vertical",
+                command=reference_canvas.yview
+            )
+
+            reference_container = ttk.Frame(reference_canvas)
+
+            reference_canvas.create_window(
+                (0, 0),
+                window=reference_container,
+                anchor="nw"
+            )
+
+            reference_canvas.configure(
+                yscrollcommand=reference_scrollbar.set
+            )
+
+            reference_container.bind(
+                "<Configure>",
+                lambda e: reference_canvas.configure(
+                    scrollregion=reference_canvas.bbox("all")
+                )
+            )
+
+            def scroll_references(event):
+                reference_canvas.yview_scroll(
+                    -1 if event.delta > 0 else 1,
+                    "units"
+                )
+                return "break"
+
+            reference_canvas.bind(
+                "<MouseWheel>",
+                scroll_references
+            )
+
+            reference_canvas.grid(
+                row=1,
+                column=0,
+                rowspan=3,
+                sticky="nsew",
+                padx=(5, 0),
+                pady=3
+            )
+
+            reference_scrollbar.grid(
+                row=1,
+                column=1,
+                rowspan=3,
+                sticky="ns",
+                padx=(0, 5),
+                pady=3
+            )
+
+            for reference_index, reference_id in enumerate(
+                reference_ids,
+                start=1
+            ):
+                reference = self.repo.get_image_by_id(reference_id)
+
+                if reference is None:
+                    continue
+
+                ref_card = ttk.Frame(
+                    reference_container,
+                    padding=6,
+                    relief="ridge"
+                )
+                ref_card.pack(
+                    fill=tk.X,
+                    padx=3,
+                    pady=3
+                )
+
+                try:
+                    img = load_display_image(reference["filepath"])
+                    img.thumbnail(TOP_RESULT_SIZE)
+
+                    ref_image = Image.new(
+                        "RGB",
+                        TOP_RESULT_SIZE,
+                        "white"
+                    )
+
+                    x = (TOP_RESULT_SIZE[0] - img.width) // 2
+                    y = (TOP_RESULT_SIZE[1] - img.height) // 2
+                    ref_image.paste(img, (x, y))
+
+                    photo = ImageTk.PhotoImage(ref_image)
+                    self.top5_refs.append(photo)
+
+                    tk.Label(
+                        ref_card,
+                        image=photo
+                    ).pack()
+
+                except Exception as exc:
+                    ttk.Label(
+                        ref_card,
+                        text=f"Bild nicht verfügbar\n{exc}",
+                        width=28,
+                        anchor="center"
+                    ).pack(pady=40)
+
+                label_text = (
+                    f"REFERENZ {reference_index}"
+                    if len(reference_ids) >= 2
+                    else "REFERENZ"
+                )
+
+                ttk.Label(
+                    ref_card,
+                    text=label_text,
+                    font=("TkDefaultFont", 11, "bold")
+                ).pack(pady=(5, 2))
+
+                ttk.Label(
+                    ref_card,
+                    text=reference["filename"],
+                    wraplength=210,
+                    justify="center"
+                ).pack(fill=tk.X)
+
+        # -------------------------------------------------
+        # Top 5
+        # -------------------------------------------------
+        positions = [
+            (1, 2),
+            (1, 3),
+            (2, 2),
+            (2, 3),
+            (3, 2),
+        ]
 
         for rank, (
             overall,
@@ -994,23 +888,23 @@ class SimilarityViewer:
         ) in enumerate(ranked_results[:5], start=1):
 
             row = self.repo.get_image_by_id(image_id)
-
             if row is None:
                 continue
+
+            result_row, result_column = positions[rank - 1]
 
             card = ttk.Frame(
                 self.top5_frame,
                 padding=6,
                 relief="ridge"
             )
-            reference_count = len(reference_ids)
 
             card.grid(
-                row=1,
-                column=reference_count + rank - 1,
+                row=result_row,
+                column=result_column,
                 padx=5,
                 pady=3,
-                sticky="n"
+                sticky="nsew"
             )
 
             try:
@@ -1025,7 +919,6 @@ class SimilarityViewer:
 
                 x = (TOP_RESULT_SIZE[0] - img.width) // 2
                 y = (TOP_RESULT_SIZE[1] - img.height) // 2
-
                 card_image.paste(img, (x, y))
 
                 photo = ImageTk.PhotoImage(card_image)
@@ -1052,12 +945,21 @@ class SimilarityViewer:
                     anchor="center"
                 ).pack(pady=40)
 
+            filename = row["filename"]
+
+            max_length = 24
+
+            if len(filename) > max_length:
+                filename = filename[:max_length - 3] + "..."
+
             ttk.Label(
                 card,
-                text=f"#{rank}  {row['filename']}",
-                wraplength=210,
+                text=f"#{rank}  {filename}",
                 justify="center"
-            ).pack(fill=tk.X, pady=(5, 2))
+            ).pack(
+                fill=tk.X,
+                pady=(5, 2)
+            )
 
             if sort_column == "overall":
                 selected_score = overall
@@ -1073,94 +975,22 @@ class SimilarityViewer:
             if selected_score is not None:
                 ttk.Label(
                     card,
-                    text=f"Gewichtet: {selected_score:.4f}",
+                    text=(
+                        f"{method_names[sort_column]}: "
+                        f"{selected_score:.4f}"
+                    ),
                     font=("TkDefaultFont", 10, "bold")
                 ).pack()
 
             ttk.Label(
                 card,
                 text=(
-                    #f"Gewichtet {overall:.4f}\n"
                     f"Farbe {color:.4f}\n"
                     f"Embedding {embedding:.4f}\n"
                     f"Hash {hash_value:.4f}"
                 ),
                 justify="center"
             ).pack()
-
-    def _update_heading_labels(self):
-        labels = {
-            "image": "Bild",
-            "overall": "Gewichtet",
-            "color": "Farbe",
-            "embedding": "Embedding",
-            "hash": "Hash",
-        }
-        for col, label in labels.items():
-            marker = ""
-            if col == self.sort_column:
-                marker = "  ▼" if self.sort_descending else "  ▲"
-            self.results.heading(col, text=label + marker)
-
-    def sort_results(self, column):
-        if not self.current_results:
-            return
-
-        if column == self.sort_column:
-            self.sort_descending = not self.sort_descending
-        else:
-            self.sort_column = column
-            self.sort_descending = column != "image"
-
-        index = {
-            "overall": 0,
-            "image": 1,
-            "color": 2,
-            "embedding": 3,
-            "hash": 4,
-        }
-        key_index = index[column]
-
-        if column == "image":
-            key_fn = lambda row: self.image_by_id[row[1]]["filename"].lower()
-        else:
-            key_fn = lambda row: row[key_index]
-
-        self.current_results.sort(key=key_fn, reverse=self.sort_descending)
-        self._render_results_table()
-        self._update_heading_labels()
-        self._show_top5(self.current_results, column)
-
-    def _render_results_table(self):
-
-        for item in self.results.get_children():
-            self.results.delete(item)
-
-        for (
-            overall,
-            image_id,
-            color,
-            embedding,
-            hash_value
-        ) in self.current_results:
-
-            image = self.repo.get_image_by_id(image_id)
-
-            if image is None:
-                continue
-
-            self.results.insert(
-                "",
-                "end",
-                iid=str(image_id),
-                values=(
-                    image["filename"],
-                    f"{overall:.4f}",
-                    f"{color:.4f}",
-                    f"{embedding:.4f}",
-                    f"{hash_value:.4f}",
-                ),
-            )
 
     def handle_thumbnail_click(self, event, image_id):
         # Shift gedrückt?
@@ -1251,9 +1081,6 @@ class SimilarityViewer:
             self.sort_column,
         )
 
-        self._render_results_table()
-        self._update_heading_labels()
-        
         self.selected_reference_ids.clear()
         self._update_multi_selection_ui()
     
@@ -1457,9 +1284,6 @@ class SimilarityViewer:
             self.sort_column
         )
 
-        self._render_results_table()
-        self._update_heading_labels()
-        
     def _scale_click(self, event, scale, variable):
 
         width = scale.winfo_width()
