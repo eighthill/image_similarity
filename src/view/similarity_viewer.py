@@ -1292,6 +1292,15 @@ class SimilarityViewer:
             sticky="ew",
             padx=10
         )
+        
+        color_scale.bind(
+            "<Button-1>",
+            lambda event: self._scale_click(
+                event,
+                color_scale,
+                self.color_weight
+            )
+        )
 
         self.embedding_weight_label = ttk.Label(frame)
         self.embedding_weight_label.grid(
@@ -1315,6 +1324,15 @@ class SimilarityViewer:
             sticky="ew",
             padx=10
         )
+        
+        embedding_scale.bind(
+            "<Button-1>",
+            lambda event: self._scale_click(
+                event,
+                embedding_scale,
+                self.embedding_weight
+            )
+        )
 
         self.hash_weight_label = ttk.Label(frame)
         self.hash_weight_label.grid(
@@ -1337,6 +1355,15 @@ class SimilarityViewer:
             column=1,
             sticky="ew",
             padx=10
+        )
+        
+        hash_scale.bind(
+            "<Button-1>",
+            lambda event: self._scale_click(
+                event,
+                hash_scale,
+                self.hash_weight
+            )
         )
 
         frame.columnconfigure(1, weight=1)
@@ -1432,3 +1459,17 @@ class SimilarityViewer:
 
         self._render_results_table()
         self._update_heading_labels()
+        
+    def _scale_click(self, event, scale, variable):
+
+        width = scale.winfo_width()
+
+        if width <= 1:
+            return "break"
+
+        x = event.x
+        x = max(0, min(x, width))
+        value = x / width
+        variable.set(value)
+        self._update_weight_labels()
+        return "break"
